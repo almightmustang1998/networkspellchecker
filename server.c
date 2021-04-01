@@ -11,7 +11,7 @@
 #define DEFAULT_DICT "dictionary.txt"
 #define DEFAULT_TEST_DICT "testdict.txt"
 #define DEFAULT_PORT 1029
-#define NUM_WORKERS 2
+#define NUM_WORKERS 3
 void *worker_thread(void *args);
 void *log_thread(void *args);
 
@@ -90,7 +90,7 @@ int main(int argc, char **argv){
 	}
 
     pthread_mutex_lock(&clientLock);
-    enqueue(test, clientSocket);
+    enqueue(test, &clientSocket);
     pthread_cond_signal(&clientCond);
     pthread_mutex_unlock(&clientLock);
 
@@ -120,7 +120,12 @@ void *worker_thread(void *args){
         pthread_cond_wait(&clientCond, &clientLock);
     }
 
-    &clientSocket = (int*)dequeue(test);
+// &clientSocket = *(int*)dequeue(test);     //cannot dereference void pointers
+
+//create temp variable to solve void pointer problem
+    int p = *(int*)dequeue(test);
+    printf("\n%d", &p);
+    clientSocket = p;
 
     pthread_mutex_unlock(&clientLock);
    

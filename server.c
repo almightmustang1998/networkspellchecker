@@ -119,9 +119,10 @@ int main(int argc, char **argv){
 void *worker_thread(void *args){
     int clientSocket;
     int bytesReturned;
+    int spellCheck;
 	char recvBuffer[BUF_LEN];
 	recvBuffer[0] = '\0';
-
+    char* deliminator = " \r\n";
 	char* clientMessage = "Hello! Welcome to the Spellchecker!!!\n";
 	char* msgRequest = "Send me some text and I'll search through my dictionary to tell you if it is a correctly spelled word!\nSend the escape key to close the connection.\n";
 	char* msgResponse = "I actually don't have anything interesting to say...but I know you sent ";
@@ -142,7 +143,6 @@ void *worker_thread(void *args){
 // &clientSocket = *(int*)dequeue(clientQueue);     //cannot dereference void pointers
 //create temp variable to solve void pointer problem
     int p = *(int*)dequeue(clientQueue);
-    printf("%d", p);
     clientSocket = p;
     pthread_mutex_unlock(&clientLock);
     
@@ -171,18 +171,25 @@ void *worker_thread(void *args){
 			break;
 		}
 		else{
-
-         //    pthread_mutex_lock(&clientLock);
+            char* buffer = strtok(recvBuffer, deliminator);
+            pthread_mutex_lock(&clientLock);
 
              //if word is in the dictionary
              //echo back okay
-           //  enqueue(&loggerQueue, recvBuffer);
-
+            enqueue(loggerQueue, recvBuffer);
+            spellCheck = spellChecker(dictionary, buffer);
+            printf("%s\n", buffer);
+            printf("%d\n", spellCheck);
+            
 			send(clientSocket, msgResponse, strlen(msgResponse), 0);
+
 			send(clientSocket, recvBuffer, bytesReturned, 0);
 			//This line will send it back to the server, it also clears the old buffer
 			//fflush(recvBuffer);
 		//	write(1, recvBuffer, bytesReturned);
+        pthread_cond_signal(&clientCond);
+        pthread_mutex_unlock(&clientLock);
+
 		}
     }
     
@@ -216,8 +223,9 @@ int spellChecker(char *fileName, char *word){
         return -1;
     }
     rewind(file);
+
     while(fgets(buffer, length, file) != NULL){
-        if(strstr(buffer, word)){
+        if (strstr(buffer, word)){
             return 1;
         }
     }     
@@ -225,5 +233,6 @@ int spellChecker(char *fileName, char *word){
        fclose(file);
        //deallocating memory 
        free(buffer);
+
        return 0;
  }

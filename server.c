@@ -4,7 +4,8 @@
 #include <pthread.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <sys/types.h>
+#include <fcntl.h> // for open
+#include <unistd.h> // for close
 
 #include "queue.h"
 #include "open_listenfd.c"
@@ -21,14 +22,16 @@ pthread_cond_t clientCond = PTHREAD_COND_INITIALIZER;
 int connectionPort;
 char *dictionary;
 
-Queue *test;
+Queue *clientQueue;
+Queue *loggerQueue;
 
 //pthread_mutex_t workMutex, logMutex;
 //pthread_cond_t workAvailable, logAvailable;
 
 int main(int argc, char **argv){
     
-    test = init();
+    clientQueue = init();
+    loggerQueue = init();
 
      //sockaddr_in holds information about the user connection.
 	//We don't need it, but it needs to be passed into accept().
@@ -36,7 +39,6 @@ int main(int argc, char **argv){
 	int clientLen = sizeof(client);
 	
 	int connectionSocket, clientSocket;
-    //init q's
 
     //create worker and log thread
     pthread_t workers[NUM_WORKERS];
@@ -88,9 +90,15 @@ int main(int argc, char **argv){
 		printf("Could not connect to %s, maybe try another port number?\n", argv[1]);
 		return -1;
 	}
-
+    
+    //lock so we can safely utilize the queue without it being corrupted
     pthread_mutex_lock(&clientLock);
-    enqueue(test, &clientSocket);
+    //if the queue is full, make client wait in order to avoid deadlock
+    if (clientQueue->length==NUM_WORKERS){
+    pthread_cond_wait(&clientCond, &clientLock); 
+    }
+
+    enqueue(clientQueue, &clientSocket);
     pthread_cond_signal(&clientCond);
     pthread_mutex_unlock(&clientLock);
 
@@ -106,35 +114,35 @@ void *worker_thread(void *args){
 	char recvBuffer[BUF_LEN];
 	recvBuffer[0] = '\0';
 
-	char* clientMessage = "Hello! I hope you can see this.\n";
-	char* msgRequest = "Send me some text and I'll respond with something interesting!\nSend the escape key to close the connection.\n";
+	char* clientMessage = "Hello! Welcome to the Spellchecker!!!\n";
+	char* msgRequest = "Send me some text and I'll search through my dictionary to tell you if it is a correctly spelled word!\nSend the escape key to close the connection.\n";
 	char* msgResponse = "I actually don't have anything interesting to say...but I know you sent ";
 	char* msgPrompt = ">>>";
 	char* msgError = "I didn't get your message. ):\n";
 	char* msgClose = "Goodbye!\n";
-    
+
+    printf("Worker created created!\n");
+
     while(1){
-    
     pthread_mutex_lock(&clientLock);
-    while(is_empty(test)!=0){
+
+    while(is_empty(clientQueue)!=0){
         pthread_cond_wait(&clientCond, &clientLock);
     }
 
-// &clientSocket = *(int*)dequeue(test);     //cannot dereference void pointers
-
+// &clientSocket = *(int*)dequeue(clientQueue);     //cannot dereference void pointers
 //create temp variable to solve void pointer problem
-    int p = *(int*)dequeue(test);
-    printf("\n%d", &p);
+    int p = *(int*)dequeue(clientQueue);
+    printf("%d", p);
     clientSocket = p;
 
     pthread_mutex_unlock(&clientLock);
-   
+    
 	//send()...sends a message.
 	//We specify the socket we want to send, the message and it's length, the
 	//last parameter are flags.
 	send(clientSocket, clientMessage, strlen(clientMessage), 0);
 	send(clientSocket, msgRequest, strlen(msgRequest), 0);
-
 
 	//Begin sending and receiving messages.
 	while(1){
@@ -151,8 +159,7 @@ void *worker_thread(void *args){
 		//'27' is the escape key.
 		else if(recvBuffer[0] == 27){
 			send(clientSocket, msgClose, strlen(msgClose), 0);
-		//	close(clientSocket);
-        //need to fix close funct
+			close(clientSocket);
 			break;
 		}
 		else{
@@ -163,11 +170,11 @@ void *worker_thread(void *args){
 		//	write(1, recvBuffer, bytesReturned);
 		}
     }
-    return NULL;
-}
+    
+} return NULL;
 }
 
 void *log_thread(void *args){
-        printf("logtest\n");
+        printf("Logger created!\n");
     return NULL;
 }

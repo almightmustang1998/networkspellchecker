@@ -10,14 +10,17 @@
 #include "queue.h"
 #include "open_listenfd.c"
 #define DEFAULT_DICT "dictionary.txt"
-#define DEFAULT_TEST_DICT "testdict.txt"
+#define DEFAULT_TEST_DICT "testdic.txt"
 #define DEFAULT_PORT 1029
 #define NUM_WORKERS 3
 void *worker_thread(void *args);
 void *log_thread(void *args);
+int spellChecker(char *fileName, char *word);
 
 pthread_mutex_t clientLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t clientCond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t logLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t logCond = PTHREAD_COND_INITIALIZER;
 
 int connectionPort;
 char *dictionary;
@@ -29,7 +32,12 @@ Queue *loggerQueue;
 //pthread_cond_t workAvailable, logAvailable;
 
 int main(int argc, char **argv){
-    
+
+    char* testword = "word";
+
+    int test = spellChecker(DEFAULT_TEST_DICT, testword);
+    printf("%d", test);
+
     clientQueue = init();
     loggerQueue = init();
 
@@ -94,7 +102,7 @@ int main(int argc, char **argv){
     //lock so we can safely utilize the queue without it being corrupted
     pthread_mutex_lock(&clientLock);
     //if the queue is full, make client wait in order to avoid deadlock
-    if (clientQueue->length==NUM_WORKERS){
+    while (clientQueue->length==NUM_WORKERS){
     pthread_cond_wait(&clientCond, &clientLock); 
     }
 
@@ -121,9 +129,10 @@ void *worker_thread(void *args){
 	char* msgError = "I didn't get your message. ):\n";
 	char* msgClose = "Goodbye!\n";
 
-    printf("Worker created created!\n");
+    printf("\nWorker created created!\n");
 
     while(1){
+
     pthread_mutex_lock(&clientLock);
 
     while(is_empty(clientQueue)!=0){
@@ -135,7 +144,6 @@ void *worker_thread(void *args){
     int p = *(int*)dequeue(clientQueue);
     printf("%d", p);
     clientSocket = p;
-
     pthread_mutex_unlock(&clientLock);
     
 	//send()...sends a message.
@@ -163,6 +171,13 @@ void *worker_thread(void *args){
 			break;
 		}
 		else{
+
+         //    pthread_mutex_lock(&clientLock);
+
+             //if word is in the dictionary
+             //echo back okay
+           //  enqueue(&loggerQueue, recvBuffer);
+
 			send(clientSocket, msgResponse, strlen(msgResponse), 0);
 			send(clientSocket, recvBuffer, bytesReturned, 0);
 			//This line will send it back to the server, it also clears the old buffer
@@ -178,3 +193,37 @@ void *log_thread(void *args){
         printf("Logger created!\n");
     return NULL;
 }
+
+//spellchecker function takes a file and word to check if 
+//it exists in the file. If it does exist 1 is returned. 
+int spellChecker(char *fileName, char *word){
+    //holds length of file
+    int length = 0; 
+    FILE *file;
+
+    if((file=fopen(fileName, "r")) == NULL){
+       // go through file
+       printf("Error opening file\n");
+       return -1;
+    }
+    while(getc(file) != EOF){
+        length++;
+    }
+    //allocate memory to store data from file
+    char *buffer = (char*) malloc(length+1);
+    if(buffer == NULL){
+        printf("Malloc failed\n");
+        return -1;
+    }
+    rewind(file);
+    while(fgets(buffer, length, file) != NULL){
+        if(strstr(buffer, word)){
+            return 1;
+        }
+    }     
+       //closing file
+       fclose(file);
+       //deallocating memory 
+       free(buffer);
+       return 0;
+ }

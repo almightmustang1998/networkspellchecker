@@ -125,8 +125,10 @@ void *worker_thread(void *args){
     char* deliminator = " \r\n";
 	char* clientMessage = "Hello! Welcome to the Spellchecker!!!\n";
 	char* msgRequest = "Send me some text and I'll search through my dictionary to tell you if it is a correctly spelled word!\nSend the escape key to close the connection.\n";
-	char* msgResponse = "I actually don't have anything interesting to say...but I know you sent ";
-	char* msgPrompt = ">>>";
+//	char* msgResponse = "I actually don't have anything interesting to say...but I know you sent ";
+	char* msgPrompt = ">>> ";
+    char* ok = " OK\n";
+    char* mispelled = " MISSPELLED\n";
 	char* msgError = "I didn't get your message. ):\n";
 	char* msgClose = "Goodbye!\n";
 
@@ -171,19 +173,28 @@ void *worker_thread(void *args){
 			break;
 		}
 		else{
+
+        char *response = (char*) malloc(15);
+        if(response== NULL){
+            printf("Malloc failed\n");
+        }
+            //needed to elimate new line || space || carriege return
             char* buffer = strtok(recvBuffer, deliminator);
             pthread_mutex_lock(&clientLock);
-
              //if word is in the dictionary
              //echo back okay
             enqueue(loggerQueue, recvBuffer);
             spellCheck = spellChecker(dictionary, buffer);
-            printf("%s\n", buffer);
-            printf("%d\n", spellCheck);
             
-			send(clientSocket, msgResponse, strlen(msgResponse), 0);
-
-			send(clientSocket, recvBuffer, bytesReturned, 0);
+            if (spellCheck == 1){
+                response = strcat(buffer, ok);
+			    send(clientSocket, response, strlen(response), 0);
+            }
+            else if (spellCheck ==0){
+                response = strcat(buffer, mispelled);
+			    send(clientSocket, response, strlen(response), 0);
+            }
+		//	send(clientSocket, recvBuffer, bytesReturned, 0);
 			//This line will send it back to the server, it also clears the old buffer
 			//fflush(recvBuffer);
 		//	write(1, recvBuffer, bytesReturned);

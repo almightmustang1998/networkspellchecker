@@ -24,7 +24,6 @@ pthread_cond_t logCond = PTHREAD_COND_INITIALIZER;
 
 int connectionPort;
 char *dictionary;
-
 Queue *clientQueue;
 Queue *loggerQueue;
 
@@ -32,11 +31,6 @@ Queue *loggerQueue;
 //pthread_cond_t workAvailable, logAvailable;
 
 int main(int argc, char **argv){
-
-    char* testword = "word";
-
-    int test = spellChecker(DEFAULT_TEST_DICT, testword);
-    printf("%d", test);
 
     clientQueue = init();
     loggerQueue = init();
@@ -88,7 +82,7 @@ int main(int argc, char **argv){
     connectionSocket = open_listenfd(connectionPort);
 
     while(1){
-
+        
     if((clientSocket = accept(connectionSocket, (struct sockaddr*) &client, (socklen_t *) &clientLen)) == -1){
 		printf("Error connecting to client.\n");
 		return -1;
@@ -101,6 +95,7 @@ int main(int argc, char **argv){
     
     //lock so we can safely utilize the queue without it being corrupted
     pthread_mutex_lock(&clientLock);
+
     //if the queue is full, make client wait in order to avoid deadlock
     while (clientQueue->length==NUM_WORKERS){
     pthread_cond_wait(&clientCond, &clientLock); 
@@ -132,14 +127,16 @@ void *worker_thread(void *args){
 	char* msgError = "I didn't get your message. ):\n";
 	char* msgClose = "Goodbye!\n";
 
-    printf("\nWorker created created!\n");
+    printf("\nWorker created!\n");
 
     while(1){
 
     pthread_mutex_lock(&clientLock);
 
     while(is_empty(clientQueue)!=0){
+        printf("Worker going to sleep.\n");
         pthread_cond_wait(&clientCond, &clientLock);
+
     }
 
 // &clientSocket = *(int*)dequeue(clientQueue);     //cannot dereference void pointers
@@ -151,6 +148,7 @@ void *worker_thread(void *args){
 	//send()...sends a message.
 	//We specify the socket we want to send, the message and it's length, the
 	//last parameter are flags.
+    printf("Worker accepeted client and started working!\n");
 	send(clientSocket, clientMessage, strlen(clientMessage), 0);
 	send(clientSocket, msgRequest, strlen(msgRequest), 0);
 
@@ -173,19 +171,17 @@ void *worker_thread(void *args){
 			break;
 		}
 		else{
-
         char *response = (char*) malloc(15);
         if(response== NULL){
             printf("Malloc failed\n");
         }
             //needed to elimate new line || space || carriege return
             char* buffer = strtok(recvBuffer, deliminator);
-            pthread_mutex_lock(&clientLock);
+           // printf("%s\n", buffer);
              //if word is in the dictionary
              //echo back okay
-            enqueue(loggerQueue, recvBuffer);
             spellCheck = spellChecker(dictionary, buffer);
-            
+            //logic for responding to clients
             if (spellCheck == 1){
                 response = strcat(buffer, ok);
 			    send(clientSocket, response, strlen(response), 0);
@@ -194,22 +190,44 @@ void *worker_thread(void *args){
                 response = strcat(buffer, mispelled);
 			    send(clientSocket, response, strlen(response), 0);
             }
+           
 		//	send(clientSocket, recvBuffer, bytesReturned, 0);
 			//This line will send it back to the server, it also clears the old buffer
 			//fflush(recvBuffer);
 		//	write(1, recvBuffer, bytesReturned);
-        pthread_cond_signal(&clientCond);
-        pthread_mutex_unlock(&clientLock);
+        //need to write the word and the socket response value to the log queue
 
+        pthread_mutex_lock(&logLock);
+        enqueue(loggerQueue, response);
+
+        pthread_cond_signal(&logCond);
+        pthread_mutex_unlock(&logLock);
+       
 		}
+        
     }
     
 } return NULL;
 }
 
 void *log_thread(void *args){
-        printf("Logger created!\n");
-    return NULL;
+    printf("Logger created!\n");
+
+    while(1){
+        //lock logger lock
+        pthread_mutex_lock(&logLock);
+
+        //while queue is empty, make it wait
+        while(is_empty(loggerQueue)!=0){
+        pthread_cond_wait(&logCond, &logLock);
+    }
+        char* word = (char*)dequeue(loggerQueue);
+        printf("%s", word);
+        pthread_cond_signal(&logCond);
+        pthread_mutex_unlock(&logLock);
+
+    }
+
 }
 
 //spellchecker function takes a file and word to check if 
@@ -227,15 +245,21 @@ int spellChecker(char *fileName, char *word){
     while(getc(file) != EOF){
         length++;
     }
+
+     rewind(file);
+
     //allocate memory to store data from file
     char *buffer = (char*) malloc(length+1);
+
     if(buffer == NULL){
         printf("Malloc failed\n");
         return -1;
     }
-    rewind(file);
+    //need to rewrite this function
+    //it is broken
 
     while(fgets(buffer, length, file) != NULL){
+       
         if (strstr(buffer, word)){
             return 1;
         }

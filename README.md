@@ -7,11 +7,15 @@ After you are finished forking this project on your local desktop, open the dire
 
 ![Image of make and test cmnd](https://github.com/almightmustang1998/networkspellchecker/blob/main/images/make.png)
 
-Now that the server is running, you can open up different terminal windows to interact with the server. Here is an example: 
+Now that the server is running, you can open up different terminal windows to interact with the server. 
+Here is an example (note how we use NC and my server's network address): 
 ![Image of client connecting](https://github.com/almightmustang1998/networkspellchecker/blob/main/images/clienttest.png)
 
-As the server handles a client, a log thread keeps track of all interactions with the server.
+As the server handles a client, a log thread tracks all interactions between the server and client(s). In order for a user to exit, they must simply press the escape key. 
 ![Image of client connecting](https://github.com/almightmustang1998/networkspellchecker/blob/main/images/servingtest.png)
+
+### Other Notes
+The default port is set to 1029 in the server.c file. The number of threads can be changed within in the server.c file. The dictionary can be set to any file within the server.c file.
 
 ### Built With
  C

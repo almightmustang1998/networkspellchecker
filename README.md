@@ -5,10 +5,13 @@ Spell checkers are useful utility programs often bundled with text editors. The 
 ### Instructions to Run
 After you are finished forking this project on your local desktop, open the directory where the files are located and write make into the terminal. After the program is finished compiling, write ./test into the terminal. The server will start running as shown here:
 
-![Image of make and test cmnd](https://github.com/almightmustang1998/networkspellchecker/blob/main/images/servingtest.png)
+![Image of make and test cmnd](https://github.com/almightmustang1998/networkspellchecker/blob/main/images/make.png)
 
 Now that the server is running, you can open up different terminal windows to interact with the server. Here is an example: 
 ![Image of client connecting](https://github.com/almightmustang1998/networkspellchecker/blob/main/images/clienttest.png)
+
+As the server handles a client, a log thread keeps track of all interactions with the server.
+![Image of client connecting](https://github.com/almightmustang1998/networkspellchecker/blob/main/images/servingtest.png)
 
 ### Built With
  C

@@ -12,7 +12,7 @@
 #define DEFAULT_DICT "dictionary.txt"
 #define DEFAULT_TEST_DICT "testdic.txt"
 #define DEFAULT_PORT 1029
-#define NUM_WORKERS 3
+#define NUM_WORKERS 5
 void *worker_thread(void *args);
 void *log_thread(void *args);
 int spellChecker(char *fileName, char *word);
@@ -113,7 +113,7 @@ void *worker_thread(void *args){
 	char* msgClose = "Goodbye!\n";
     char* created = "Worker created!\n";
     char* sleep = "Worker going to sleep\n";
-    char* working = "Worker accepeted client and started working!\n";
+    char* working = "Worker accepted client and started working!\n";
 
     pthread_mutex_lock(&logLock);
     enqueue(loggerQueue, created);
@@ -209,7 +209,6 @@ void *log_thread(void *args){
         char* word = (char*)dequeue(loggerQueue);
         printf("%s", word);
         pthread_mutex_unlock(&logLock);
-
     }
 
 }

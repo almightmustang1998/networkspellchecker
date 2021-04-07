@@ -12,6 +12,7 @@ Here is an example (note how we use NC and my server's network address):
 ![Image of client connecting](https://github.com/almightmustang1998/networkspellchecker/blob/main/images/clienttest.png)
 
 As the server handles a client, a log thread tracks all interactions between the server and client(s). In order for a user to exit, they must simply press the escape key. 
+
 ![Image of client connecting](https://github.com/almightmustang1998/networkspellchecker/blob/main/images/servingtest.png)
 
 ### Other Notes
